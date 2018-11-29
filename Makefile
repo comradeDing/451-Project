@@ -9,13 +9,13 @@ MSTEXE=MASTER
 MSTSRC=master.cpp
 
 P1EXE=PROG1
-P1SRC=prog1.cpp
+P1SRC=program1.cpp
 
 P2EXE=PROG2
-P2SRC=prog2.cpp
+P2SRC=program2.cpp
 
-P2EXE=PROG2
-P2SRC=prog2.cpp
+P3EXE=PROG3
+P3SRC=program3.cpp
 
 init:
 	mkdir $(BDIR)
@@ -40,3 +40,6 @@ buildall:
 
 run:
 	./$(BDIR)/$(MSTEXE) $(A) $(B)
+
+remake:
+	make clean buildall

@@ -30,6 +30,10 @@ char* int_to_charptr(int);
 
 void close_prog(int);
 
+const char* gProg1exe = "./build/PROG1";
+const char* gProg2exe = "./build/PROG2";
+const char* gProg3exe = "./build/PROG1";
+
 int main(int argc, char** argv)
 {
 
@@ -77,7 +81,8 @@ int main(int argc, char** argv)
     execargs args = set_args(&md);
 
     // Fork worker processes
-        // Fork process one
+    
+    // Fork prog1
     if((pids[0] = fork()) == -1)
     {
         perror("fork");
@@ -85,34 +90,48 @@ int main(int argc, char** argv)
     }
     else if(pids[0] == 0) // child process 1
     {
-        execv("./build/PROG1", args.prog1args);
+        if(execvp(gProg1exe, args.prog1args) == -1)
+        {
+            perror("execvp failure");
+            exit(4);
+        }
         std::cout << "[prog1] Ending process" << std::endl;
         exit(0);
     }
 
-    // if((pids[1] = fork()) == -1)
-    // {
-    //     perror("fork");
-    //     exit(4);
-    // }
-    // else if(pids[1] == 0) // child process 2
-    // {
-    //     execv("./build/PROG2", args.prog2args);
-    //     std::cout << "[prog2] Ending process" << std::endl;
-    //     exit(0);
-    // }
+    // Fork prog2
+    if((pids[1] = fork()) == -1)
+    {
+        perror("fork");
+        exit(4);
+    }
+    else if(pids[1] == 0) // child process 2
+    {
+        if(execv("./build/PROG2", args.prog2args) == -1)
+        {
+            perror("execv failure");
+            exit(4);
+        }
+        std::cout << "[prog2] Ending process" << std::endl;
+        exit(0);
+    }
 
-    //     if((pids[2] = fork()) == -1)
-    // {
-    //     perror("fork");
-    //     exit(4);
-    // }
-    // else if(pids[2] == 0) // child process 3
-    // {
-    //     execv("./build/PROG3", args.prog3args);
-    //     std::cout << "[prog3] Ending process" << std::endl;
-    //     exit(0);
-    // }
+    // Fork prog3
+    if((pids[2] = fork()) == -1)
+    {
+        perror("fork");
+        exit(4);
+    }
+    else if(pids[2] == 0) // child process 3
+    {
+        if(execv("./build/PROG3", args.prog3args) == -1)
+        {
+            perror("execv failure");
+            exit(4);
+        }
+        std::cout << "[prog3] Ending process" << std::endl;
+        exit(0);
+    }
 
     // wait for worker processes
     int status = WEXITED;
@@ -168,22 +187,25 @@ execargs set_args(progcomms *md)
 {
     execargs args;
     // program 1 needs filename, pipe 1 write id, semaphore key
-    args.prog1args = (char**)calloc(3, sizeof(char*));
+    args.prog1args = (char**)calloc(4, sizeof(char*));
     args.prog1args[0] = md->infile;
     args.prog1args[1] = int_to_charptr(md->pipids[0][0]);
     args.prog1args[2] = int_to_charptr((int)md->semkey);
+    args.prog1args[3] = NULL;
 
-    args.prog2args = (char**)calloc(4, sizeof(char*));
+    args.prog2args = (char**)calloc(5, sizeof(char*));
     args.prog2args[0] = int_to_charptr(md->pipids[0][1]);
     args.prog2args[1] = int_to_charptr(md->pipids[1][0]);
     args.prog2args[2] = int_to_charptr((int)md->semkey);
     args.prog2args[3] = int_to_charptr((int)md->shmkey);
+    args.prog2args[4] = NULL;
 
-    args.prog3args = (char**)calloc(4, sizeof(char*));
+    args.prog3args = (char**)calloc(5, sizeof(char*));
     args.prog3args[0] = int_to_charptr(md->pipids[1][1]);
     args.prog3args[1] = int_to_charptr((int)md->semkey);
     args.prog3args[2] = int_to_charptr((int)md->shmkey);
     args.prog3args[3] = md->outfile;
+    args.prog3args[4] = NULL;
 
     return args;
 
