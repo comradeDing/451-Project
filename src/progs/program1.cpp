@@ -13,10 +13,6 @@ int main(int argc, char** argv)
 
     FILE* outfile = fopen("./data/p1output.txt", "w");
 
-    fprintf(outfile, "[prog1] pid #%d\n", getpid());
-    fprintf(outfile, "[prog1] filename %s\n", argv[0]);
-    fprintf(outfile, "[prog1] write pipe id #%s\n", argv[1]);
-    fprintf(outfile, "[prog1] semkey #%s\n", argv[2]);
     std::cout << "[prog1] pid #" << getpid() << std::endl;
     std::cout << "[prog1] filename '" << argv[0] << "'" << std::endl;
     std::cout << "[prog1] write pipe id #" << argv[1] << std::endl;
