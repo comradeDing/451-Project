@@ -12,8 +12,9 @@ int main(int argc, char** argv)
         exit(1);
 
     std::cout << "[prog1] pid #" << getpid() << std::endl;
-    std::cout << "[prog1] write pipe id #" << argv[1] << std::endl;
-    std::cout << "[prog1] sem key #" << argv[2] << std::endl;
+    std::cout << "[prog1] filename '" << argv[1] << "'" << std::endl;
+    std::cout << "[prog1] write pipe id #" << argv[2] << std::endl;
+    std::cout << "[prog1] sem key #" << argv[3] << std::endl;
 
     exit(0);
 }

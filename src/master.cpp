@@ -1,12 +1,34 @@
 #include <iostream>
 #include <stdlib.h>
+#include <string.h>
 #include <unistd.h>
+#include <sys/types.h>
+#include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
 #include <errno.h>
 
+struct progcomms {
+    char* infile;
+    char* outfile;
+    int pipids[2][2];
+    key_t semkey;
+    int semid;
+    key_t shmkey;
+};
+
+struct execargs {
+    char** prog1args;
+    char** prog2args;
+    char** prog3args;
+};
+
 int testargs(int);
 int testfile(char*);
+execargs set_args(progcomms*);
+char* int_to_charptr(int);
+
+void close_prog(int);
 
 int main(int argc, char** argv)
 {
@@ -20,36 +42,39 @@ int main(int argc, char** argv)
     // test filename
     if(testfile(argv[1]))
         exit(1);
-    
-    char* infilename = argv[1];
 
     // Master data
     pid_t pids[3];      // process IDs
-    int pipids[2][2];   // pipe IDs
-    key_t semkey;       // sys V semaphore key
-    int semid;          // sys V semaphore id
-    key_t shmkey;       // shared memory key
+    // int pipids[2][2];   // pipe IDs
+    // key_t semkey;       // sys V semaphore key
+    // int semid;          // sys V semaphore id
+    // key_t shmkey;       // shared memory key
+    progcomms md;
+    md.infile = argv[1];
+    md.outfile = argv[2];
 
     // Create 2 pipes
-    if(pipe(pipids[0]) == -1 || pipe(pipids[1]) == -1)
+    if(pipe(md.pipids[0]) == -1 || pipe(md.pipids[1]) == -1)
     {
         perror("pipe");
         exit(2);
     }
 
     // create key for semaphore
-    if((semkey = ftok(infilename, 'E')) == -1)
+    if((md.semkey = ftok(md.infile, 'E')) == -1)
     {
         perror("ftok");
         exit(3);
     }
 
     // initialize semaphore set
-    if((semid = semget(semkey, 2, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
+    if((md.semid = semget(md.semkey, 2, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
     {
         perror("semget");
         exit(3);
     }
+
+    execargs args = set_args(&md);
 
     // Fork worker processes
         // Fork process one
@@ -58,24 +83,51 @@ int main(int argc, char** argv)
         perror("fork");
         exit(4);
     }
-    else if(pids[0] == 0) // child process
+    else if(pids[0] == 0) // child process 1
     {
-        execv("./build/PROG1", {"mst"})
+        execv("./build/PROG1", args.prog1args);
+        std::cout << "[prog1] Ending process" << std::endl;
+        exit(0);
     }
-        // Fork process two
-        // Forks process three
+
+    // if((pids[1] = fork()) == -1)
+    // {
+    //     perror("fork");
+    //     exit(4);
+    // }
+    // else if(pids[1] == 0) // child process 2
+    // {
+    //     execv("./build/PROG2", args.prog2args);
+    //     std::cout << "[prog2] Ending process" << std::endl;
+    //     exit(0);
+    // }
+
+    //     if((pids[2] = fork()) == -1)
+    // {
+    //     perror("fork");
+    //     exit(4);
+    // }
+    // else if(pids[2] == 0) // child process 3
+    // {
+    //     execv("./build/PROG3", args.prog3args);
+    //     std::cout << "[prog3] Ending process" << std::endl;
+    //     exit(0);
+    // }
 
     // wait for worker processes
+    int status = WEXITED;
+    for(int i = 0; i < 3; i++)
+        waitpid(pids[i], &status, 0);
 
     // for testing, close pipes
     for(int i = 0; i < 2; i++)
     {
-        close(pipids[i][0]);
-        close(pipids[i][1]);
+        close(md.pipids[i][0]);
+        close(md.pipids[i][1]);
     }
 
     // close semaphore set
-    semctl(semid, 0, IPC_RMID);
+    semctl(md.semid, 0, IPC_RMID);
 
     std::cout << "[master] ending program..." << std::endl;
 }
@@ -110,4 +162,37 @@ int testfile(char* filename)
     }
     fclose(fid);
     return 0;
+}
+
+execargs set_args(progcomms *md)
+{
+    execargs args;
+    // program 1 needs filename, pipe 1 write id, semaphore key
+    args.prog1args = (char**)calloc(3, sizeof(char*));
+    args.prog1args[0] = md->infile;
+    args.prog1args[1] = int_to_charptr(md->pipids[0][0]);
+    args.prog1args[2] = int_to_charptr((int)md->semkey);
+
+    args.prog2args = (char**)calloc(4, sizeof(char*));
+    args.prog2args[0] = int_to_charptr(md->pipids[0][1]);
+    args.prog2args[1] = int_to_charptr(md->pipids[1][0]);
+    args.prog2args[2] = int_to_charptr((int)md->semkey);
+    args.prog2args[3] = int_to_charptr((int)md->shmkey);
+
+    args.prog3args = (char**)calloc(4, sizeof(char*));
+    args.prog3args[0] = int_to_charptr(md->pipids[1][1]);
+    args.prog3args[1] = int_to_charptr((int)md->semkey);
+    args.prog3args[2] = int_to_charptr((int)md->shmkey);
+    args.prog3args[3] = md->outfile;
+
+    return args;
+
+}
+
+char* int_to_charptr(int i)
+{
+    std::string str = std::to_string(i);
+    char* cstr = new char[str.length() + 1];
+    strcpy(cstr, str.c_str());
+    return cstr;
 }
