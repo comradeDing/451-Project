@@ -17,6 +17,12 @@ int main(int argc, char** argv)
     std::cout << "[prog3] shared mem key #" << argv[2] << std::endl;
     std::cout << "[prog3] output filename '" << argv[3] << "'" << std::endl;
 
+        for(int i = 1; i <= 5; i++)
+    {
+        std::cout << "[prog3] " << i << std::endl;
+        sleep(1);
+    }
+
     exit(0);
 }
 

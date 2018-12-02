@@ -80,9 +80,11 @@ int main(int argc, char** argv)
 
     execargs args = set_args(&md);
 
-    // Fork worker processes
-    
-    // Fork prog1
+    // ***************************************************
+    // Fork worker processes *****************************
+    // ***************************************************
+
+    // Fork prog1 ****************************************
     if((pids[0] = fork()) == -1)
     {
         perror("fork");
@@ -99,9 +101,9 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    // Fork prog2
+    // Fork prog2 ****************************************
     if((pids[1] = fork()) == -1)
-    {
+    { 
         perror("fork");
         exit(4);
     }
@@ -116,7 +118,7 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    // Fork prog3
+    // Fork prog3 ****************************************
     if((pids[2] = fork()) == -1)
     {
         perror("fork");
@@ -133,7 +135,7 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    // wait for worker processes
+    // wait for worker processes *************************
     int status = WEXITED;
     for(int i = 0; i < 3; i++)
         waitpid(pids[i], &status, 0);

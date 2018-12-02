@@ -17,6 +17,12 @@ int main(int argc, char** argv)
     std::cout << "[prog2] sem key #" << argv[2] << std::endl;
     std::cout << "[prog2] shared mem key #" << argv[3] << std::endl;
 
+    for(int i = 1; i <= 5; i++)
+    {
+        std::cout << "[prog2] " << i << std::endl;
+        sleep(1);
+    }
+
     exit(0);
 }
 

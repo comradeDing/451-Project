@@ -7,19 +7,26 @@ int testargs(int);
 
 int main(int argc, char** argv)
 {
-    std::cout<< "[prog1] argc = " << argc << std::endl;
     if(testargs(argc))
         exit(1);
 
-    FILE* outfile = fopen("./data/p1output.txt", "w");
+    // Get semaphore id
+
+    // process file loop
+        // read one word
+        // write
 
     std::cout << "[prog1] pid #" << getpid() << std::endl;
     std::cout << "[prog1] filename '" << argv[0] << "'" << std::endl;
     std::cout << "[prog1] write pipe id #" << argv[1] << std::endl;
     std::cout << "[prog1] sem key #" << argv[2] << std::endl;
-
-    fclose(outfile);
-
+    
+    for(int i = 1; i <= 5; i++)
+    {
+        std::cout << "[prog1] " << i << std::endl;
+        sleep(1);
+    }
+        
     exit(0);
 }
 
