@@ -9,6 +9,16 @@ int testargs(int);
 void unlock(int);
 void lock(int);
 
+/**
+ * Read buffer
+ */ 
+char* gReadBuf;
+int gReadSize;
+
+void w_read(const int fileHandle);
+void w_writeToken(const int fileHandle);
+void expandReadBuf(int newSize);
+
 union semun {
     int val;
     struct semid_ds *buf;
@@ -28,6 +38,10 @@ int main(int argc, char** argv)
         perror("semget");
         exit(1);
     }
+
+    // Initialize read buffer
+    //gReadSize = 64;
+    //gReadBuf = (char*)calloc(gReadSize+1, sizeof(char)); 
 
     // process file loop
         // read one word

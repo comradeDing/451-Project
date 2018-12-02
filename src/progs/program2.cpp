@@ -6,8 +6,8 @@
 #include <sys/types.h>
 
 int testargs(int);
-void unlock(int);
-void lock(int);
+void unlock(int, int, int);
+void lock(int, int, int);
 
 union semun {
     int val;
@@ -36,10 +36,18 @@ int main(int argc, char** argv)
     
     for(int i = 1; i <= 5; i++)
     {
-        unlock(semid);
+        unlock(semid, 0, 1);
         std::cout << "[prog2] " << i << std::endl;
         sleep(1);
-        lock(semid);
+        lock(semid, 0, 0);
+    }
+
+    for(int i = 1; i <= 5; i++)
+    {
+        unlock(semid, 1, 0);
+        std::cout << "[prog2] " << i << std::endl;
+        sleep(1);
+        lock(semid, 1, 1);
     }
 
     exit(0);
@@ -60,19 +68,19 @@ int testargs(int argc)
     return 0;
 }
 
-void unlock(int semid)
+void unlock(int semid, int semnum, int semval)
 {
-    int semval;
-    while((semval = semctl(semid, 0, GETVAL, args)) != 1);
-    if(semval == -1)
+    int val;
+    while((val = semctl(semid, semnum, GETVAL, args)) != semval);
+    if(val == -1)
     {
         perror("semctl");
     }
 }
 
-void lock(int semid)
+void lock(int semid, int semnum, int semval)
 {
-    args.val = 0;
-    if(semctl(semid, 0, SETVAL, args) == -1)
+    args.val = semval;
+    if(semctl(semid, semnum, SETVAL, args) == -1)
         perror("semctl");
 }

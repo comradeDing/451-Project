@@ -132,22 +132,22 @@ int main(int argc, char** argv)
         exit(0);
     }
 
-    // // Fork prog3 ****************************************
-    // if((pids[2] = fork()) == -1)
-    // {
-    //     perror("fork");
-    //     close_prog(7, &md);
-    // }
-    // else if(pids[2] == 0) // child process 3
-    // {
-    //     if(execv("./build/PROG3", args.prog3args) == -1)
-    //     {
-    //         perror("execv failure");
-    //         close_prog(7, &md);
-    //     }
-    //     std::cout << "[prog3] Ending process" << std::endl;
-    //     exit(0);
-    // }
+    // Fork prog3 ****************************************
+    if((pids[2] = fork()) == -1)
+    {
+        perror("fork");
+        close_prog(7, &md);
+    }
+    else if(pids[2] == 0) // child process 3
+    {
+        if(execv("./build/PROG3", args.prog3args) == -1)
+        {
+            perror("execv failure");
+            close_prog(7, &md);
+        }
+        std::cout << "[prog3] Ending process" << std::endl;
+        exit(0);
+    }
 
     // wait for worker processes *************************
     int status = WEXITED;
