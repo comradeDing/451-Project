@@ -23,12 +23,17 @@ struct execargs {
     char** prog3args;
 };
 
+union semun {
+    int val;
+    struct semid_ds *buf;
+    unsigned short *array;
+} sem_init;
+
 int testargs(int);
 int testfile(char*);
 execargs set_args(progcomms*);
 char* int_to_charptr(int);
-
-void close_prog(int);
+void close_prog(int, struct progcomms*);
 
 const char* gProg1exe = "./build/PROG1";
 const char* gProg2exe = "./build/PROG2";
@@ -61,41 +66,50 @@ int main(int argc, char** argv)
     if(pipe(md.pipids[0]) == -1 || pipe(md.pipids[1]) == -1)
     {
         perror("pipe");
-        exit(2);
+        close_prog(2, &md);
     }
 
     // create key for semaphore
-    if((md.semkey = ftok(md.infile, 'E')) == -1)
+    if((md.semkey = ftok("./src/master.cpp", 'E')) == -1)
     {
         perror("ftok");
-        exit(3);
+        close_prog(3, &md);
     }
 
     // initialize semaphore set
-    if((md.semid = semget(md.semkey, 2, 0666 | IPC_CREAT | IPC_EXCL)) == -1)
+    if((md.semid = semget(md.semkey, 2, 0666 | IPC_CREAT)) == -1)
     {
         perror("semget");
-        exit(3);
+        close_prog(3, &md);
     }
 
-    execargs args = set_args(&md);
+    ushort vals[2] = {0};
+    sem_init.array = vals;
+    if(semctl(md.semid, 0, SETALL, sem_init) == -1)
+    {
+        perror("semctl");
+        close_prog(4, &md);
+    }
 
     // ***************************************************
     // Fork worker processes *****************************
     // ***************************************************
+    
+    // populate program argument char arrays
+    execargs args = set_args(&md);
 
     // Fork prog1 ****************************************
     if((pids[0] = fork()) == -1)
     {
         perror("fork");
-        exit(4);
+        exit(5);
     }
     else if(pids[0] == 0) // child process 1
     {
         if(execvp(gProg1exe, args.prog1args) == -1)
         {
             perror("execvp failure");
-            exit(4);
+            exit(5);
         }
         std::cout << "[prog1] Ending process" << std::endl;
         exit(0);
@@ -105,52 +119,44 @@ int main(int argc, char** argv)
     if((pids[1] = fork()) == -1)
     { 
         perror("fork");
-        exit(4);
+        exit(6);
     }
     else if(pids[1] == 0) // child process 2
     {
         if(execv("./build/PROG2", args.prog2args) == -1)
         {
             perror("execv failure");
-            exit(4);
+            exit(6);
         }
         std::cout << "[prog2] Ending process" << std::endl;
         exit(0);
     }
 
-    // Fork prog3 ****************************************
-    if((pids[2] = fork()) == -1)
-    {
-        perror("fork");
-        exit(4);
-    }
-    else if(pids[2] == 0) // child process 3
-    {
-        if(execv("./build/PROG3", args.prog3args) == -1)
-        {
-            perror("execv failure");
-            exit(4);
-        }
-        std::cout << "[prog3] Ending process" << std::endl;
-        exit(0);
-    }
+    // // Fork prog3 ****************************************
+    // if((pids[2] = fork()) == -1)
+    // {
+    //     perror("fork");
+    //     close_prog(7, &md);
+    // }
+    // else if(pids[2] == 0) // child process 3
+    // {
+    //     if(execv("./build/PROG3", args.prog3args) == -1)
+    //     {
+    //         perror("execv failure");
+    //         close_prog(7, &md);
+    //     }
+    //     std::cout << "[prog3] Ending process" << std::endl;
+    //     exit(0);
+    // }
 
     // wait for worker processes *************************
     int status = WEXITED;
     for(int i = 0; i < 3; i++)
         waitpid(pids[i], &status, 0);
 
-    // for testing, close pipes
-    for(int i = 0; i < 2; i++)
-    {
-        close(md.pipids[i][0]);
-        close(md.pipids[i][1]);
-    }
-
-    // close semaphore set
-    semctl(md.semid, 0, IPC_RMID);
-
     std::cout << "[master] ending program..." << std::endl;
+
+    close_prog(0, &md);
 }
 
 /**
@@ -219,4 +225,20 @@ char* int_to_charptr(int i)
     char* cstr = new char[str.length() + 1];
     strcpy(cstr, str.c_str());
     return cstr;
+}
+
+void close_prog(int exitcode, struct progcomms *md)
+{
+
+    // for testing, close pipes
+    for(int i = 0; i < 2; i++)
+    {
+        close(md->pipids[i][0]);
+        close(md->pipids[i][1]);
+    }
+
+    // close semaphore set
+    semctl(md->semid, 0, IPC_RMID);
+
+    exit(exitcode);
 }
