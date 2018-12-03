@@ -1,23 +1,26 @@
 #include <iostream>
 #include <stdlib.h>
 #include <unistd.h>
+#include <fcntl.h>
 #include <errno.h>
 #include <sys/sem.h>
 #include <sys/types.h>
+
 
 int testargs(int);
 void unlock(int);
 void lock(int);
 
 /**
- * Read buffer
+ * Global read variables
  */ 
+const int gBufLen = 64;
+int gCurWordLen;
 char* gReadBuf;
-int gReadSize;
+bool eof = false;
 
-void w_read(const int fileHandle);
-void w_writeToken(const int fileHandle);
-void expandReadBuf(int newSize);
+void read_word(int filehandle);
+void write_word(int writepipe);
 
 union semun {
     int val;
@@ -27,8 +30,12 @@ union semun {
 
 int main(int argc, char** argv)
 {
+    std::cout << "[prog1] Starting program 1" << std::endl;
+
     if(testargs(argc))
         exit(1);
+    char* filename = argv[0];
+    int pipid = atoi(argv[1]);
 
     // Get semaphore id
     key_t semkey = atoi(argv[2]);
@@ -40,21 +47,25 @@ int main(int argc, char** argv)
     }
 
     // Initialize read buffer
-    //gReadSize = 64;
-    //gReadBuf = (char*)calloc(gReadSize+1, sizeof(char)); 
+    gReadBuf = (char*)calloc(gBufLen+1, sizeof(char));
 
-    // process file loop
-        // read one word
-        // write
+    // Initialize input file and write pipe
+    int filehandle = open(filename, O_RDONLY);
     
-    for(int i = 1; i <= 5; i++)
-    {
+    while(!eof)
+    {        
         unlock(semid);
-        std::cout << "[prog1] " << i << std::endl;
-        sleep(1);
+        std::cout << "[prog1] unlock" << std::endl;
+        read_word(filehandle);
+        write_word(pipid);
         lock(semid);
+        std::cout << "[prog1] lock" << std::endl;
     }
         
+    free(gReadBuf);
+    
+    std::cout << "[prog1] Exiting..." << std::endl;
+
     exit(0);
 }
 
@@ -88,4 +99,48 @@ void lock(int semid)
     args.val = 1;
     if(semctl(semid, 0, SETVAL, args) == -1)
         perror("semctl");
+}
+
+void read_word(int filehandle)
+{
+    std::cout << "[prog1] reading from input.data" << std::endl;
+    char temp[1];
+    int charCount = 0;
+    bool eow = false;
+    while(!eow)
+    {          
+        // Read one character 
+        if(read(filehandle, temp, 1) == 0)
+        {
+            std::cout << "[prog1] eof" << std::endl;
+            eof = true;
+            break;
+        }
+
+        if(temp[0] != ' ')  // If not the end of the word, add to read buff
+            gReadBuf[charCount] = temp[0];            
+        else                // If the end of the word, trip end of word flag
+        {
+            std::cout << "[prog1] eow" << std::endl;
+            eow = true;
+        }
+
+        charCount++;
+    }
+    // Cap end of word with null char
+    gReadBuf[charCount-1] = '\0';
+    gCurWordLen = charCount;    
+    charCount = 0;
+}
+
+void write_word(int pipid)
+{
+    if(!eof)
+    {
+        std::cout << "[prog1] writing: " << gReadBuf << std::endl;
+        write(pipid, gReadBuf, gCurWordLen);
+        return;
+    }    
+    std::cout << "[prog1] writing eof" << std::endl;
+    write(pipid, "@\0", 2); // End file characters
 }

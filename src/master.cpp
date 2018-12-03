@@ -133,21 +133,21 @@ int main(int argc, char** argv)
     }
 
     // Fork prog3 ****************************************
-    if((pids[2] = fork()) == -1)
-    {
-        perror("fork");
-        close_prog(7, &md);
-    }
-    else if(pids[2] == 0) // child process 3
-    {
-        if(execv("./build/PROG3", args.prog3args) == -1)
-        {
-            perror("execv failure");
-            close_prog(7, &md);
-        }
-        std::cout << "[prog3] Ending process" << std::endl;
-        exit(0);
-    }
+    // if((pids[2] = fork()) == -1)
+    // {
+    //     perror("fork");
+    //     close_prog(7, &md);
+    // }
+    // else if(pids[2] == 0) // child process 3
+    // {
+    //     if(execv("./build/PROG3", args.prog3args) == -1)
+    //     {
+    //         perror("execv failure");
+    //         close_prog(7, &md);
+    //     }
+    //     std::cout << "[prog3] Ending process" << std::endl;
+    //     exit(0);
+    // }
 
     // wait for worker processes *************************
     int status = WEXITED;
@@ -197,19 +197,19 @@ execargs set_args(progcomms *md)
     // program 1 needs filename, pipe 1 write id, semaphore key
     args.prog1args = (char**)calloc(4, sizeof(char*));
     args.prog1args[0] = md->infile;
-    args.prog1args[1] = int_to_charptr(md->pipids[0][0]);
+    args.prog1args[1] = int_to_charptr(md->pipids[0][1]); // write end of pipe 1
     args.prog1args[2] = int_to_charptr((int)md->semkey);
     args.prog1args[3] = NULL;
 
     args.prog2args = (char**)calloc(5, sizeof(char*));
-    args.prog2args[0] = int_to_charptr(md->pipids[0][1]);
-    args.prog2args[1] = int_to_charptr(md->pipids[1][0]);
+    args.prog2args[0] = int_to_charptr(md->pipids[0][0]); // read end of pipe 1
+    args.prog2args[1] = int_to_charptr(md->pipids[1][1]); // write end of pipe 2
     args.prog2args[2] = int_to_charptr((int)md->semkey);
     args.prog2args[3] = int_to_charptr((int)md->shmkey);
     args.prog2args[4] = NULL;
 
     args.prog3args = (char**)calloc(5, sizeof(char*));
-    args.prog3args[0] = int_to_charptr(md->pipids[1][1]);
+    args.prog3args[0] = int_to_charptr(md->pipids[1][0]); // read end of pipe 2
     args.prog3args[1] = int_to_charptr((int)md->semkey);
     args.prog3args[2] = int_to_charptr((int)md->shmkey);
     args.prog3args[3] = md->outfile;
