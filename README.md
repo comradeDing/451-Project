@@ -1,7 +1,7 @@
 # Final OS Project
 
-**Author:_Erich Dingeldein_**
-
+**Author: _Erich Dingeldein_**
+ 
 ## 1. Building the program:
 Open a command prompt in the directory containing the Makefile.
 Enter the command:
@@ -22,7 +22,7 @@ Enter the command:
 make run A=./data/<name of input file> B=<name of output file>
 ```
 Substitute the name of the appropriate files between the <> above.
-Data will be read from your input file located in the data directory, translated to piglatin, and written to the output file you named above. The output file name _will_ have the directory **./data** appended to it, so only enter the name of your file. The output file will be located in the **/data/** directory upon a sucessful run of the program.
+Data will be read from your input file located in the data directory, translated to piglatin, and written to the output file you named above. The output file name _will_ have the directory **./data/** appended to it, so only enter the name of your file. The output file will be located in the **/data/** directory upon a sucessful run of the program.
 
 ### Other information
 All build process can be found in the Makefile. To run a specific make command, just enter:
