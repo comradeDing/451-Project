@@ -9,6 +9,11 @@
 #include <sys/shm.h>
 #include <errno.h>
 
+/**
+ * Custom structs
+ */ 
+// Program communications
+// contains all filenames, pipeids, semaphore and shared memory keys and ids
 struct progcomms {
     char* infile;
     char* outfile;
@@ -19,28 +24,44 @@ struct progcomms {
     int shmid;
 };
 
+// Executable arguments. Command line arguments to use in execv function
 struct execargs {
     char** prog1args;
     char** prog2args;
     char** prog3args;
 };
-
+// Semun union used when acessing system v semaphores.
 union semun {
     int val;
     struct semid_ds *buf;
     unsigned short *array;
 } sem_init;
 
+/**
+ * Method headers
+ */ 
 int testargs(int);
 int testfile(char*);
 execargs set_args(progcomms*);
 char* int_to_charptr(int);
 void close_prog(int, struct progcomms*);
 
+/**
+ * Executable file paths
+ */ 
 const char* gProg1exe = "./build/PROG1";
 const char* gProg2exe = "./build/PROG2";
 const char* gProg3exe = "./build/PROG1";
 
+/**
+ * FUNCTION: main
+ * -----------------------------------
+ * configures and initializes all semaphores, pipes and shared memeory, then launches and joins all child processes.
+ * closes out all semaphores, pipes and shared memory.
+ * 
+ * argc: number of command line arguments
+ * argv: the command line arguments
+ */ 
 int main(int argc, char** argv)
 {
 
@@ -56,11 +77,7 @@ int main(int argc, char** argv)
 
     // Master data
     pid_t pids[3];      // process IDs
-    // int pipids[2][2];   // pipe IDs
-    // key_t semkey;       // sys V semaphore key
-    // int semid;          // sys V semaphore id
-    // key_t shmkey;       // shared memory key
-    progcomms md;
+    progcomms md;       // program communications structure
     md.infile = argv[1];
     md.outfile = argv[2];
 
@@ -78,25 +95,28 @@ int main(int argc, char** argv)
         close_prog(3, &md);
     }
 
-    // initialize semaphore set
+    // initialize semaphore set and get it's id
     if((md.semid = semget(md.semkey, 2, 0666 | IPC_CREAT)) == -1)
     {
         perror("semget");
         close_prog(3, &md);
     }
 
+    // create key for shared memory
     if((md.shmkey = ftok("./src/progs/program1.cpp", 'R')) == -1)
     {
         perror("ftok");
         close_prog(2, &md);
     }
 
+    // initialize shared memeor and get it's id
     if((md.shmid = shmget(md.shmkey, sizeof(int) * 2, 0666 | IPC_CREAT)) == -1)
     {
         perror("shmget");
         close_prog(2, &md);
     }    
 
+    // Set starting values of semaphores
     ushort vals[2] = {0};
     sem_init.array = vals;
     if(semctl(md.semid, 0, SETALL, sem_init) == -1)
@@ -119,13 +139,13 @@ int main(int argc, char** argv)
         exit(5);
     }
     else if(pids[0] == 0) // child process 1
-    {
+    {   
+        // Execute child process 1
         if(execvp(gProg1exe, args.prog1args) == -1)
         {
             perror("execvp failure");
             exit(5);
         }
-        std::cout << "[prog1] Ending process" << std::endl;
         exit(0);
     }
 
@@ -137,12 +157,12 @@ int main(int argc, char** argv)
     }
     else if(pids[1] == 0) // child process 2
     {
+        // Execute child process 2
         if(execv("./build/PROG2", args.prog2args) == -1)
         {
             perror("execv failure");
             exit(6);
         }
-        std::cout << "[prog2] Ending process" << std::endl;
         exit(0);
     }
 
@@ -154,12 +174,12 @@ int main(int argc, char** argv)
     }
     else if(pids[2] == 0) // child process 3
     {
+        // Execute child process 3
         if(execv("./build/PROG3", args.prog3args) == -1)
         {
             perror("execv failure");
             close_prog(7, &md);
         }
-        std::cout << "[prog3] Ending process" << std::endl;
         exit(0);
     }
 
@@ -168,13 +188,16 @@ int main(int argc, char** argv)
     for(int i = 0; i < 3; i++)
         waitpid(pids[i], &status, 0);    
 
+    // Close and clean up
     close_prog(0, &md);    
 }
 
 /**
  * FUNCTION: testargs
- * -------------------------
+ * -------------------------------------
  * Tests if there are the correct number of command line arguments
+ * 
+ * argc: number of arguments to check against
  */ 
 int testargs(int argc)
 {
@@ -188,8 +211,10 @@ int testargs(int argc)
 
 /**
  * FUNCTION: testfile
- * -------------------------
+ * -------------------------------------
  * Tests if the input file exists
+ * 
+ * filename: path of the file to check for
  */ 
 int testfile(char* filename)
 {
@@ -203,6 +228,13 @@ int testfile(char* filename)
     return 0;
 }
 
+/**
+ * FUNCTION: set_args
+ * -------------------------------------
+ * Converts master data (md = process communications struct) into command line arguments (char*)
+ * 
+ * md: The program communications data structure to convert
+ */ 
 execargs set_args(progcomms *md)
 {
     execargs args;
@@ -231,6 +263,12 @@ execargs set_args(progcomms *md)
 
 }
 
+/**
+ * FUNCTION: int_to_charptr
+ * -------------------------------------
+ * 
+ * i: the integer to convert to char pointer (string)
+ */ 
 char* int_to_charptr(int i)
 {
     std::string str = std::to_string(i);
@@ -239,6 +277,14 @@ char* int_to_charptr(int i)
     return cstr;
 }
 
+/**
+ * FUNCTION: close_prog
+ * -------------------------------------
+ * closes all of the process communications and exits the program
+ * 
+ * exitcode: the exit code with which to exit the program
+ * md: the data structure containing process communications that need to close
+ */ 
 void close_prog(int exitcode, struct progcomms *md)
 {
 

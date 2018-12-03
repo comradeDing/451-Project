@@ -10,33 +10,55 @@
 
 #define DATAPATH "./data/"
 
+/**
+ * Method headers
+ */ 
 int testargs(int);
 void unlock(int);
 void lock(int);
 void read_word(int);
 void write_word(int);
 
-// End of file flag
+/**
+ * End of file flag
+ */ 
 bool eof = false;
 
-// Word buffers
+/**
+ * IO buffer
+ */ 
 const int gBufLen = 64;
 int gCurWordLen;
 char* gReadBuf;
 
-// Shared data segment
+/**
+ * Shared memory segment
+ */ 
 int *counts;
 
-// pipe, sharedmem and outfile ids
+/**
+ * Pipe and file id's
+ */ 
 int pip1id;
 int outfileid;
 
+/**
+ * Data structure for sys v semaphore access
+ */ 
 union semun {
     int val;
     struct semid_ds *buf;
     unsigned short *array;
 } args;
 
+/**
+ * FUNCTION: main
+ * -------------------------------------
+ * Initializes program and runs main read/write loop.
+ * 
+ * argc: number of command line arguments
+ * argv: array of command line arguments
+ */
 int main(int argc, char** argv)
 {
 
@@ -93,9 +115,9 @@ int main(int argc, char** argv)
     while(!eof)
     {
 
-        unlock(semid);
-        read_word(pip1id);
         lock(semid);
+        read_word(pip1id);
+        unlock(semid);
         
         write_word(outfileid);        
 
@@ -117,8 +139,10 @@ int main(int argc, char** argv)
 
 /**
  * FUNCTION: testargs
- * -------------------------
- * Tests if there are the correct number of command line arguments
+ * -------------------------------------
+ * tests if there are the correct number of command line arguments
+ * 
+ * argc: number of arguments to test against
  */ 
 int testargs(int argc)
 {
@@ -130,7 +154,14 @@ int testargs(int argc)
     return 0;
 }
 
-void unlock(int semid)
+/**
+ * FUNCTION: lock
+ * -------------------------------------
+ * wrapper funciton to handle wait and lock of semaphore 1
+ *
+ * semid: id of the semaphore
+ */ 
+void lock(int semid)
 {   
     int semval;
     while((semval = semctl(semid, 1, GETVAL, args)) != 1);
@@ -140,13 +171,27 @@ void unlock(int semid)
     }
 }
 
-void lock(int semid)
+/**
+ * FUNCTION: unlock
+ * -------------------------------------
+ * wrapper function to handle unlocking of semaphore 1
+ * 
+ * semid: id of the semaphore
+ */ 
+void unlock(int semid)
 {
     args.val = 0;
     if(semctl(semid, 1, SETVAL, args) == -1)
         perror("semctl");
 }
 
+/**
+ * FUNCTION: read_word
+ * -------------------------------------
+ * reads a word ended by a null character from the IO associated with a pipid
+ * 
+ * infileid: the id of the input IO
+ */ 
 void read_word(int pipid)
 {
 
@@ -179,6 +224,13 @@ void read_word(int pipid)
     charCount = 0;
 }
 
+/**
+ * FUNCTION: write_word
+ * -------------------------------------
+ * writes the word contained in gReadBuf to the IO associated with outfileid
+ * 
+ * outfileid: the id of the IO
+ */ 
 void write_word(int outfileid)
 {
     if(!eof)

@@ -7,6 +7,9 @@
 #include <sys/types.h>
 #include <sys/shm.h>
 
+/**
+ * Method headers
+ */ 
 int testargs(int);
 void unlock(int, int, int);
 void lock(int, int, int);
@@ -14,36 +17,57 @@ void read_word(int);
 void write_word(int);
 void translate_word();
 
+// translation methods
 char *piglatinize(char *english);
 int isVowel(char ch);
 int isCap(char *word);
 void reCap(char *word);
 
+/**
+ * Structs
+ */  
+// Union needed access system v semapores
 union semun {
     int val;
     struct semid_ds *buf;
     unsigned short *array;
 } args;
 
-// Pipe ids
+/**
+ * Pipe IDs
+ */ 
 int pip1id, pip2id;
 
-// End of file flag
+/**
+ * End of file flag
+ */ 
 bool eof = false;
 
-// Word buffers
+/**
+ * Input and output word buffers
+ */ 
 const int gBufLen = 64;
 int gCurWordLen;
 char* gReadBuf;
 char* gWriteBuf;
 
-// Count values
+/**
+ * Shared memory
+ */ 
+// Data to share
 int gNumCon;
 int gNumVow;
-
 // Shared memory segment
 int *counts;
 
+/**
+ * FUNCTION: main
+ * -------------------------------------
+ * Initializes program and runs main read/write loop.
+ * 
+ * argc: number of command line arguments
+ * argv: array of command line arguments
+ */
 int main(int argc, char** argv)
 {
     std::cout << "[prog2] Starting -- pid #" << getpid() << std::endl;
@@ -89,22 +113,24 @@ int main(int argc, char** argv)
     while(!eof)
     {
         // Read from input pipe        
-        unlock(semid, 0, 1);
+        lock(semid, 0, 1);
         read_word(pip1id);
-        lock(semid, 0, 0);
+        unlock(semid, 0, 0);
 
         translate_word();
-
+        
+        // Set shared memory
+        counts[0] = gNumVow;
+        counts[1] = gNumCon;
+        
         // Write to output pipe
-        unlock(semid, 1, 0);
+        lock(semid, 1, 0);
         write_word(pip2id);
-        lock(semid, 1, 1);
+        unlock(semid, 1, 1);
     }
     std::cout << "[prog2] end read/write" << std::endl;
 
-    counts[0] = gNumVow;
-    counts[1] = gNumCon;
-
+    // Clean up
     free(gReadBuf);
     free(gWriteBuf);
 
@@ -115,8 +141,10 @@ int main(int argc, char** argv)
 
 /**
  * FUNCTION: testargs
- * -------------------------
- * Tests if there are the correct number of command line arguments
+ * -------------------------------------
+ * tests if there are the correct number of command line arguments
+ * 
+ * argc: number of arguments to test against
  */ 
 int testargs(int argc)
 {
@@ -128,7 +156,16 @@ int testargs(int argc)
     return 0;
 }
 
-void unlock(int semid, int semnum, int semval)
+/**
+ * FUNCTION: lock
+ * -------------------------------------
+ * wrapper funciton to handle wait and lock of semaphores
+ *
+ * semid: id of the semaphore
+ * semnum: the semaphore being locked
+ * semval: the blocking value of the semaphore
+ */ 
+void lock(int semid, int semnum, int semval)
 {
     int val;
     while((val = semctl(semid, semnum, GETVAL, args)) != semval);
@@ -138,13 +175,29 @@ void unlock(int semid, int semnum, int semval)
     }
 }
 
-void lock(int semid, int semnum, int semval)
+/**
+ * FUNCTION: unlock
+ * -------------------------------------
+ * wrapper function to handle unlocking of semaphores
+ * 
+ * semid: id of the semaphore
+ * semnum: the semaphore being unlocked
+ * semval: the value to set the semaphore to
+ */ 
+void unlock(int semid, int semnum, int semval)
 {
     args.val = semval;
     if(semctl(semid, semnum, SETVAL, args) == -1)
         perror("semctl");
 }
 
+/**
+ * FUNCTION: read_word
+ * -------------------------------------
+ * reads a word ended by a space character from the IO associated with a pipid
+ * 
+ * pipid: the id of the IO
+ */ 
 void read_word(int pipid)
 {
 
@@ -175,6 +228,13 @@ void read_word(int pipid)
     charCount = 0;
 }
 
+/**
+ * FUNCTION: write_word
+ * -------------------------------------
+ * writes the word contained in gReadBuf to the IO associated with pipid
+ * 
+ * pipid: the id of the IO
+ */ 
 void write_word(int pipid)
 {
     if(!eof)
@@ -186,6 +246,11 @@ void write_word(int pipid)
     write(pipid, "@\0", 2); // End file characters    
 }
 
+/**
+ * FUNCTION: translate_word
+ * -------------------------------------
+ * translates the word located in gReadBuf from english to piglatin and copies it to gWriteBuf
+ */ 
 void translate_word()
 {    
     if(gReadBuf[0] == '@') return;
@@ -201,6 +266,15 @@ void translate_word()
     free(pigl);
 }
 
+/**
+ * FUNCTION: piglatinize
+ * -------------------------------------
+ * Translates a input string from english to piglatin and updates the number of voweled and consanant words (global variables)
+ * 
+ * engilsh: the input english word to translate
+ * 
+ * returns the translated piglatin word
+ */ 
 char *piglatinize(char *english)
 {
     int engLen = strlen(english);   // Length of english string
@@ -268,6 +342,15 @@ char *piglatinize(char *english)
     return piglatin;
 }
 
+/**
+ * FUNCTION: isVowel
+ * -------------------------------------
+ * checks if the input char is a vowel. ignores case of character
+ * 
+ * ch: the character to check
+ *  
+ * returns 1 if a vowel, 0 if not
+ */ 
 int isVowel(char ch)
 {
     if( ch == 'a' || ch == 'A' ||
@@ -280,12 +363,27 @@ int isVowel(char ch)
         return 0;
 }
 
+/**
+ * FUNCTION: isCap
+ * -------------------------------------
+ * Checks if the word is capitalized
+ * 
+ * word: the word to check
+ * 
+ * returns 1 if capitalized and 0 if not
+ */ 
 int isCap(char *word)
 {
     if('A' <= word[0] && word[0] <= 'Z') return 1;
     return 0;
 }
-
+/**
+ * FUNCTION: isVowel
+ * -------------------------------------
+ * recapitalizes a translated piglatin word
+ * 
+ * word: the word to recapitalize
+ */ 
 void reCap(char *word)
 {
     for(int i = 0; i < strlen(word); i++)
