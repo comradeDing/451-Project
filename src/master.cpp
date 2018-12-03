@@ -6,6 +6,7 @@
 #include <sys/wait.h>
 #include <sys/ipc.h>
 #include <sys/sem.h>
+#include <sys/shm.h>
 #include <errno.h>
 
 struct progcomms {
@@ -15,6 +16,7 @@ struct progcomms {
     key_t semkey;
     int semid;
     key_t shmkey;
+    int shmid;
 };
 
 struct execargs {
@@ -82,6 +84,18 @@ int main(int argc, char** argv)
         perror("semget");
         close_prog(3, &md);
     }
+
+    if((md.shmkey = ftok("./src/progs/program1.cpp", 'R')) == -1)
+    {
+        perror("ftok");
+        close_prog(2, &md);
+    }
+
+    if((md.shmid = shmget(md.shmkey, sizeof(int) * 2, 0666 | IPC_CREAT)) == -1)
+    {
+        perror("shmget");
+        close_prog(2, &md);
+    }    
 
     ushort vals[2] = {0};
     sem_init.array = vals;
@@ -240,6 +254,9 @@ void close_prog(int exitcode, struct progcomms *md)
     // close semaphore set
     semctl(md->semid, 0, IPC_RMID);
 
+    std::cout << "[master] freeing shared memory" << std::endl;
+    // close shared memory
+    shmctl(md->shmid, IPC_RMID, NULL);
 
     std::cout << "[master] Ending program..." << std::endl;
     exit(exitcode);

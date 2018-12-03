@@ -5,6 +5,7 @@
 #include <errno.h>
 #include <sys/sem.h>
 #include <sys/types.h>
+#include <sys/shm.h>
 
 int testargs(int);
 void unlock(int, int, int);
@@ -36,9 +37,12 @@ int gCurWordLen;
 char* gReadBuf;
 char* gWriteBuf;
 
-// Shared mem values
+// Count values
 int gNumCon;
 int gNumVow;
+
+// Shared memory segment
+int *counts;
 
 int main(int argc, char** argv)
 {
@@ -54,6 +58,23 @@ int main(int argc, char** argv)
     {
         perror("semget");
         exit(1);
+    }
+
+    // Get shared memory id
+    key_t shmkey = atoi(argv[3]);
+    int shmid;
+    if((shmid = shmget(shmkey, 0, 0)) == -1)
+    {
+        perror("shmget");
+        exit(2);
+    }
+
+    // Attach to shared memory
+    counts = (int *)shmat(shmid, (void*)0, 0);
+    if(counts == (int *)(-1))
+    {
+        perror("shmat");
+        exit(2);
     }
 
     // Get pipe ids
@@ -80,6 +101,9 @@ int main(int argc, char** argv)
         lock(semid, 1, 1);
     }
     std::cout << "[prog2] end read/write" << std::endl;
+
+    counts[0] = gNumVow;
+    counts[1] = gNumCon;
 
     free(gReadBuf);
     free(gWriteBuf);
@@ -164,6 +188,8 @@ void write_word(int pipid)
 
 void translate_word()
 {    
+    if(gReadBuf[0] == '@') return;
+
     char engl[strlen(gReadBuf)];
     strcpy(engl, gReadBuf);
 
@@ -187,7 +213,6 @@ char *piglatinize(char *english)
     if(isVowel(english[0])) 
     {
         gNumVow++;
-
         // Initalize vowel piglatin string
         pigLen++;
         chfirst = 'r';             
@@ -195,7 +220,6 @@ char *piglatinize(char *english)
     else
     {
         gNumCon++;
-        
         // "pop" the first letter of the english string
         chfirst = english[0];
         english++;

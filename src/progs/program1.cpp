@@ -6,29 +6,45 @@
 #include <sys/sem.h>
 #include <sys/types.h>
 
-
+/**
+ * Method header declarations
+ */
 int testargs(int);
 void unlock(int);
 void lock(int);
-
-/**
- * Global read variables
- */ 
-const int gBufLen = 64;
-int gCurWordLen;
-char* gReadBuf;
-bool eof = false;
-
 void read_word(int);
 void write_word(int);
 void write_eof(int);
 
+/**
+ * Global read buffer and data
+ */ 
+const int gBufLen = 64;
+int gCurWordLen;
+char* gReadBuf;
+
+/**
+ * EOF flag
+ */ 
+bool eof = false;
+
+/**
+ * Semun data structure for sys V semaphore access
+ */
 union semun {
     int val;
     struct semid_ds *buf;
     unsigned short *array;
 } args;
 
+/**
+ * FUNCTION: main
+ * -------------------------------------
+ * Initializes program and runs main read/write loop.
+ * 
+ * argc: number of command line arguments
+ * argv: array of command line arguments
+ */
 int main(int argc, char** argv)
 {
     std::cout << "[prog1] Starting -- pid #" << getpid() << std::endl;
@@ -56,23 +72,23 @@ int main(int argc, char** argv)
     gReadBuf = (char*)calloc(gBufLen+1, sizeof(char));
 
     // Initialize input file and write pipe
-    int filehandle = open(filename, O_RDONLY);
+    int infileid = open(filename, O_RDONLY);
     
     std::cout << "[prog1] start read/write" << std::endl;
     while(!eof)
     {        
         
-        read_word(filehandle);
+        read_word(infileid);
 
-        unlock(semid);
-        write_word(pipid);
         lock(semid);
+        write_word(pipid);
+        unlock(semid);
     }
 
     // Write the eof to the pipe
-    unlock(semid);
-    write_eof(pipid);
     lock(semid);
+    write_eof(pipid);
+    unlock(semid);
 
     std::cout << "[prog1] end read/write" << std::endl;
         
@@ -85,8 +101,10 @@ int main(int argc, char** argv)
 
 /**
  * FUNCTION: testargs
- * -------------------------
- * Tests if there are the correct number of command line arguments
+ * -------------------------------------
+ * tests if there are the correct number of command line arguments
+ * 
+ * argc: number of arguments to test against
  */ 
 int testargs(int argc)
 {
@@ -98,7 +116,14 @@ int testargs(int argc)
     return 0;
 }
 
-void unlock(int semid)
+/**
+ * FUNCTION: lock
+ * -------------------------------------
+ * wrapper funciton to handle wait and lock of semaphore 0
+ *
+ * semid: id of the semaphore
+ */ 
+void lock(int semid)
 {   
     int semval;
     while((semval = semctl(semid, 0, GETVAL, args)) != 0);
@@ -108,14 +133,28 @@ void unlock(int semid)
     }
 }
 
-void lock(int semid)
+/**
+ * FUNCTION: unlock
+ * -------------------------------------
+ * wrapper function to handle unlocking of semaphore 0
+ * 
+ * semid: id of the semaphore
+ */ 
+void unlock(int semid)
 {
     args.val = 1;
     if(semctl(semid, 0, SETVAL, args) == -1)
         perror("semctl");
 }
 
-void read_word(int filehandle)
+/**
+ * FUNCTION: read_word
+ * -------------------------------------
+ * reads a word ended by a space character from the file associated with a infileid
+ * 
+ * infileid: the id of the input file
+ */ 
+void read_word(int infileid)
 {
 
     char temp[1];
@@ -124,20 +163,17 @@ void read_word(int filehandle)
     while(!eow)
     {          
         // Read one character 
-        if(read(filehandle, temp, 1) == 0)
+        if(read(infileid, temp, 1) == 0)
         {
             std::cout << "[prog1] eof" << std::endl;
             eof = true;
             temp[0] = ' ';
         }
-        if(temp[0] != ' ')  // If not the end of the word, add to read buff
-        {
-                        
-            gReadBuf[charCount] = temp[0];            
-        }
-        else                // If the end of the word, trip end of word flag
-            eow = true;
-
+        
+        if(temp[0] == ' ')  // If not the end of the word, add to read buff
+            eow = true;    
+        
+        gReadBuf[charCount] = temp[0];            
         charCount++;
     }
     // Cap end of word with null char
@@ -146,11 +182,25 @@ void read_word(int filehandle)
     charCount = 0;
 }
 
+/**
+ * FUNCTION: write_word
+ * -------------------------------------
+ * writes the word contained in gReadBuf to the IO associated with pipid
+ * 
+ * pipid: the id of the IO
+ */ 
 void write_word(int pipid)
 {
     write(pipid, gReadBuf, gCurWordLen);
 }
 
+/**
+ * FUNCTION: write_eof
+ * -------------------------------------
+ * writes eof character (@) to the IO associated with pipid
+ * 
+ * pipid: the id of the IO
+ */ 
 void write_eof(int pipid)
 {
     std::cout << "[prog1] writing eof" << std::endl;

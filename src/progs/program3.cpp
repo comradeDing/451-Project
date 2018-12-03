@@ -6,6 +6,7 @@
 #include <fcntl.h>
 #include <sys/sem.h>
 #include <sys/types.h>
+#include <sys/shm.h>
 
 #define DATAPATH "./data/"
 
@@ -23,9 +24,11 @@ const int gBufLen = 64;
 int gCurWordLen;
 char* gReadBuf;
 
+// Shared data segment
+int *counts;
+
 // pipe, sharedmem and outfile ids
 int pip1id;
-int shmid;
 int outfileid;
 
 union semun {
@@ -57,9 +60,6 @@ int main(int argc, char** argv)
     // Get pipid
     pip1id = atoi(argv[0]);
 
-    // Get shmid
-    shmid = atoi(argv[2]);
-
     // Get semaphore id
     key_t semkey = atoi(argv[1]);
     int semid;
@@ -69,6 +69,23 @@ int main(int argc, char** argv)
         exit(1);
     }    
     
+    // Get shared memory id
+    key_t shmkey = atoi(argv[2]);
+    int shmid;
+    if((shmid = shmget(shmkey, 0, 0)) == -1)
+    {
+        perror("shmget");
+        exit(2);
+    }
+
+    // Attach to shared memory
+    counts = (int *)shmat(shmid, (void*)0, 0);
+    if(counts == (int *)(-1))
+    {
+        perror("shmat");
+        exit(2);
+    }
+
     // Initialize read buffer
     gReadBuf = (char*)calloc(gBufLen+1, sizeof(char*));
 
@@ -84,6 +101,10 @@ int main(int argc, char** argv)
 
     }
     std::cout << "[prog3] end read/write" << std::endl;
+
+    // Print number of each type of word
+    std::cout << "Type 1: " << counts[0] << std::endl;
+    std::cout << "Type 2: " << counts[1] << std::endl;
 
     // Cleanup
     close(outfileid);    
