@@ -133,30 +133,28 @@ int main(int argc, char** argv)
     }
 
     // Fork prog3 ****************************************
-    // if((pids[2] = fork()) == -1)
-    // {
-    //     perror("fork");
-    //     close_prog(7, &md);
-    // }
-    // else if(pids[2] == 0) // child process 3
-    // {
-    //     if(execv("./build/PROG3", args.prog3args) == -1)
-    //     {
-    //         perror("execv failure");
-    //         close_prog(7, &md);
-    //     }
-    //     std::cout << "[prog3] Ending process" << std::endl;
-    //     exit(0);
-    // }
+    if((pids[2] = fork()) == -1)
+    {
+        perror("fork");
+        close_prog(7, &md);
+    }
+    else if(pids[2] == 0) // child process 3
+    {
+        if(execv("./build/PROG3", args.prog3args) == -1)
+        {
+            perror("execv failure");
+            close_prog(7, &md);
+        }
+        std::cout << "[prog3] Ending process" << std::endl;
+        exit(0);
+    }
 
     // wait for worker processes *************************
     int status = WEXITED;
     for(int i = 0; i < 3; i++)
-        waitpid(pids[i], &status, 0);
+        waitpid(pids[i], &status, 0);    
 
-    std::cout << "[master] ending program..." << std::endl;
-
-    close_prog(0, &md);
+    close_prog(0, &md);    
 }
 
 /**
@@ -230,6 +228,7 @@ char* int_to_charptr(int i)
 void close_prog(int exitcode, struct progcomms *md)
 {
 
+    std::cout << "[master] closing pipes" << std::endl;
     // for testing, close pipes
     for(int i = 0; i < 2; i++)
     {
@@ -237,8 +236,11 @@ void close_prog(int exitcode, struct progcomms *md)
         close(md->pipids[i][1]);
     }
 
+    std::cout << "[master] freeing semaphores" << std::endl;
     // close semaphore set
     semctl(md->semid, 0, IPC_RMID);
 
+
+    std::cout << "[master] Ending program..." << std::endl;
     exit(exitcode);
 }

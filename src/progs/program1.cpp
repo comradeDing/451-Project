@@ -30,11 +30,16 @@ union semun {
 
 int main(int argc, char** argv)
 {
-    std::cout << "[prog1] Starting program 1" << std::endl;
+    std::cout << "[prog1] Starting -- pid #" << getpid() << std::endl;
 
     if(testargs(argc))
         exit(1);
+    
+    // Build filename
     char* filename = argv[0];
+    std::cout << "[prog1] Input file path: " << filename << std::endl;
+
+    // Get write pipe 1 id
     int pipid = atoi(argv[1]);
 
     // Get semaphore id
@@ -52,15 +57,17 @@ int main(int argc, char** argv)
     // Initialize input file and write pipe
     int filehandle = open(filename, O_RDONLY);
     
+    std::cout << "[prog1] start read/write" << std::endl;
     while(!eof)
     {        
         unlock(semid);
-        std::cout << "[prog1] unlock" << std::endl;
+        //std::cout << "[prog1] unlock" << std::endl;
         read_word(filehandle);
         write_word(pipid);
         lock(semid);
-        std::cout << "[prog1] lock" << std::endl;
+        //std::cout << "[prog1] lock" << std::endl;
     }
+    std::cout << "[prog1] end read/write" << std::endl;
         
     free(gReadBuf);
     
@@ -103,7 +110,7 @@ void lock(int semid)
 
 void read_word(int filehandle)
 {
-    std::cout << "[prog1] reading from input.data" << std::endl;
+    //std::cout << "[prog1] reading from input.data" << std::endl;
     char temp[1];
     int charCount = 0;
     bool eow = false;
@@ -114,14 +121,19 @@ void read_word(int filehandle)
         {
             std::cout << "[prog1] eof" << std::endl;
             eof = true;
-            break;
+            temp[0] = ' ';
         }
+
+        char test;
+        if(temp[0] == ' ') test = '0';
+        else test = temp[0];
+        std::cout << test << std::endl;
 
         if(temp[0] != ' ')  // If not the end of the word, add to read buff
             gReadBuf[charCount] = temp[0];            
         else                // If the end of the word, trip end of word flag
         {
-            std::cout << "[prog1] eow" << std::endl;
+            //std::cout << "[prog1] eow" << std::endl;
             eow = true;
         }
 
@@ -137,7 +149,7 @@ void write_word(int pipid)
 {
     if(!eof)
     {
-        std::cout << "[prog1] writing: " << gReadBuf << std::endl;
+        std::cout << "[prog1] writing: " << gReadBuf << "|" << std::endl;
         write(pipid, gReadBuf, gCurWordLen);
         return;
     }    

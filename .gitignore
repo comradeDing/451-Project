@@ -1,3 +1,6 @@
 # Directories
 /test
 /build
+
+# Files
+/data/output.txt
