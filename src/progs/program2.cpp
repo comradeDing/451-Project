@@ -69,19 +69,14 @@ int main(int argc, char** argv)
     {
         // Read from input pipe        
         unlock(semid, 0, 1);
-        //std::cout << "[prog2] unlock sem 1" << std::endl;
         read_word(pip1id);
         lock(semid, 0, 0);
-        //std::cout << "[prog2] lock sem 1" << std::endl;
 
-        //std::cout << "[prog2] translating word..." << std::endl;
         translate_word();
 
         // Write to output pipe
         unlock(semid, 1, 0);
-        //std::cout << "[prog2] unlock sem 2" << std::endl;
         write_word(pip2id);
-        //std::cout << "[prog2] lock sem 2" << std::endl;
         lock(semid, 1, 1);
     }
     std::cout << "[prog2] end read/write" << std::endl;
@@ -128,7 +123,6 @@ void lock(int semid, int semnum, int semval)
 
 void read_word(int pipid)
 {
-    //std::cout << "[prog2] read fromp pipe1" << std::endl;
 
     char temp[1];
     int charCount = 0;
@@ -143,19 +137,15 @@ void read_word(int pipid)
         }        
         if(temp[0] == '\0')
         {
-            //std::cout << "[prog2] eow" << std::endl;
             eow = true;
         }
         if(temp[0] == '@')
         {
-            //std::cout << "[prog2] eof" << std::endl;
             eof = true;
         }
         gReadBuf[charCount] = temp[0];
         charCount++;
     }
-
-    //std::cout << "[prog2] " << gReadBuf << std::endl;
 
     gCurWordLen = charCount;
     charCount = 0;
@@ -165,7 +155,6 @@ void write_word(int pipid)
 {
     if(!eof)
     {
-        //std::cout << "[prog2] writing: " << gWriteBuf << std::endl;
         write(pipid, gWriteBuf, gCurWordLen);
         return;
     }    
@@ -242,7 +231,7 @@ char *piglatinize(char *english)
         piglatin[lett+3] = ' ';
         piglatin[lett+4] = '\0';
     }
-    
+
     // Add piglatin suffix
     piglatin[lett] = chfirst;
     piglatin[lett+1] = 'a';

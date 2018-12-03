@@ -75,14 +75,13 @@ int main(int argc, char** argv)
     std::cout << "[prog3] start read/write" << std::endl;
     while(!eof)
     {
+
         unlock(semid);
-        //std::cout << "[prog3] unlock" << std::endl;
-        // Read word from pipe
         read_word(pip1id);
-        // Print word to output file
-        write_word(outfileid);
-        //std::cout << "[prog3] lock" << std::endl;
         lock(semid);
+        
+        write_word(outfileid);        
+
     }
     std::cout << "[prog3] end read/write" << std::endl;
 
@@ -129,7 +128,6 @@ void lock(int semid)
 
 void read_word(int pipid)
 {
-    //std::cout << "[prog3] read from pipe 2" << std::endl;
 
     char temp[1];
     int charCount = 0;
@@ -138,27 +136,22 @@ void read_word(int pipid)
     {        
         if(read(pipid, temp, 1) == -1)
         {
-            //std::cout << "[prog3] error" << std::endl;
             perror("read");
             return;
         }        
         if(temp[0] == '\0')
         {
-            //std::cout << "[prog3] eow" << std::endl;
             temp[0] == '0';
             eow = true;
         }
         if(temp[0] == '@')
         {
-            //std::cout << "[prog3] eof" << std::endl;
             eof = true;
         }
         gReadBuf[charCount] = temp[0];
         charCount++;
     }
 
-    //std::cout << "[prog3] read: " << gReadBuf << std::endl;
-    
     // Cap string with null char
     gReadBuf[charCount] = '\0';
     gCurWordLen = charCount;
@@ -169,7 +162,6 @@ void write_word(int outfileid)
 {
     if(!eof)
     {
-        std::cout << "[prog3] writing: " << gReadBuf << "|" << std::endl;
         write(outfileid, gReadBuf, gCurWordLen - 1);
         return;
     }    

@@ -19,8 +19,9 @@ int gCurWordLen;
 char* gReadBuf;
 bool eof = false;
 
-void read_word(int filehandle);
-void write_word(int writepipe);
+void read_word(int);
+void write_word(int);
+void write_eof(int);
 
 union semun {
     int val;
@@ -60,13 +61,19 @@ int main(int argc, char** argv)
     std::cout << "[prog1] start read/write" << std::endl;
     while(!eof)
     {        
-        unlock(semid);
-        //std::cout << "[prog1] unlock" << std::endl;
+        
         read_word(filehandle);
+
+        unlock(semid);
         write_word(pipid);
         lock(semid);
-        //std::cout << "[prog1] lock" << std::endl;
     }
+
+    // Write the eof to the pipe
+    unlock(semid);
+    write_eof(pipid);
+    lock(semid);
+
     std::cout << "[prog1] end read/write" << std::endl;
         
     free(gReadBuf);
@@ -110,7 +117,7 @@ void lock(int semid)
 
 void read_word(int filehandle)
 {
-    //std::cout << "[prog1] reading from input.data" << std::endl;
+
     char temp[1];
     int charCount = 0;
     bool eow = false;
@@ -123,19 +130,13 @@ void read_word(int filehandle)
             eof = true;
             temp[0] = ' ';
         }
-
-        char test;
-        if(temp[0] == ' ') test = '0';
-        else test = temp[0];
-        std::cout << test << std::endl;
-
         if(temp[0] != ' ')  // If not the end of the word, add to read buff
-            gReadBuf[charCount] = temp[0];            
-        else                // If the end of the word, trip end of word flag
         {
-            //std::cout << "[prog1] eow" << std::endl;
-            eow = true;
+                        
+            gReadBuf[charCount] = temp[0];            
         }
+        else                // If the end of the word, trip end of word flag
+            eow = true;
 
         charCount++;
     }
@@ -147,12 +148,11 @@ void read_word(int filehandle)
 
 void write_word(int pipid)
 {
-    if(!eof)
-    {
-        std::cout << "[prog1] writing: " << gReadBuf << "|" << std::endl;
-        write(pipid, gReadBuf, gCurWordLen);
-        return;
-    }    
+    write(pipid, gReadBuf, gCurWordLen);
+}
+
+void write_eof(int pipid)
+{
     std::cout << "[prog1] writing eof" << std::endl;
     write(pipid, "@\0", 2); // End file characters
 }
